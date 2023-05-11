@@ -1,0 +1,11 @@
+apiVersion: multicluster.x-k8s.io/v1alpha1
+kind: ServiceExport
+metadata:
+  name: catalog
+  namespace: acme-fitness
+---
+apiVersion: multicluster.x-k8s.io/v1alpha1
+kind: ServiceExport
+metadata:
+  name: cart
+  namespace: acme-fitness

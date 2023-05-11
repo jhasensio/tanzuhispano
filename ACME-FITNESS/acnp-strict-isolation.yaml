@@ -1,0 +1,24 @@
+apiVersion: multicluster.crd.antrea.io/v1alpha1
+kind: ResourceExport
+metadata:
+  name: strict-namespace-isolation-for-tanzuhispano-clusterset
+  namespace: antrea-multicluster # Namespace that Multi-cluster Controller is deployed
+spec:
+  kind: AntreaClusterNetworkPolicy
+  name: strict-namespace-isolation # In each importing cluster, an ACNP of name antrea-mc-strict-namespace-isolation will be created with the spec below
+  clusterNetworkPolicy:
+    priority: 1
+    tier: securityops
+    appliedTo:
+      - namespaceSelector: {} # Selects all Namespaces in the member cluster
+    ingress:
+      - action: Pass
+        from:
+          - namespaces:
+              match: Self # Skip drop rule for traffic from Pods in the same Namespace
+          - podSelector:
+              matchLabels:
+                k8s-app: kube-dns # Skip drop rule for traffic from the core-dns components
+      - action: Drop
+        from:
+          - namespaceSelector: {} # Drop from Pods from all other Namespaces
