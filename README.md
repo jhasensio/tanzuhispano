@@ -91,7 +91,7 @@ Empezamos por instalar los componentes de MEMBER en el cluster TANZUHISPANO-DB q
 ```
 kubectl config use-context cl-tanzuhispano-db
 kubectl apply -f https://raw.githubusercontent.com/antrea-io/antrea/main/multicluster/build/yamls/antrea-multicluster-member.yml
-´´´
+```
 Nos movemos al cluster TANZUHISPANO-01 cambiando de contexto
 
 ```
@@ -219,7 +219,7 @@ metadata:
   name: member-tanzuhispano-01-token
   namespace: kube-system
 type: Opaque
-´´´
+```
  
  A continutación aplicamos la configuración correspondientemente en cada uno de los miembros del cluster.
  
@@ -295,7 +295,7 @@ spec:
       server: "https://10.118.5.200:6443"
   namespace: antrea-multicluster
 EOF
-´´´
+```
 Repetimos para el cluster MEMBER cl-tanzuhispano-02
 ``` 
 kubectl config use-context cl-tanzuhispano-02
@@ -455,7 +455,7 @@ kubectl expose deployment www --port=80
 ```
 Seguidamente exportamos el servicio desde el cluster TANZUHISPANO-DB de modo que el resto de miembros puedan alcanzarlo
 
-´´´
+```
 kubectl apply -f - <<EOF
 apiVersion: multicluster.x-k8s.io/v1alpha1
 kind: ServiceExport
@@ -478,7 +478,7 @@ kubectl get services
 NAME            TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
 antrea-mc-www   ClusterIP   10.228.98.170   <none>        80/TCP    10h
 kubernetes      ClusterIP   10.228.96.1     <none>        443/TCP   12h
-´´´
+```
 Sin embargo, si observamos los endpoints, tal como se muestra abajo, podemos notar como nuestro servicio antrea-mc-www es una representación de un servicio cuyos endpoints pertenecen al rango de CIDR de Pods del cluster TANZUHISPANO-DB, precisamente por que corresponden a PODS que residen en un cluster remoto. 
 
 ```
@@ -488,22 +488,22 @@ antrea-mc-www   10.118.113.9:80,10.118.114.8:80,10.118.115.5:80   69s
 ```
 Esta importación de servicio ocurriría en todos los miembros del ClusterSet. Para hacer una prueba de conectividad básica podemos ejecutar un curl desde TANZUHISPANO-01 para ver si alcanzamos los pods en TANZUHISPANO-DB a través de la abstracción del servicio multicluster
  
-´´´
+```
 kubectl run mycurlpod --image=curlimages/curl -i --tty -- sh
 If you don't see a command prompt, try pressing enter.
 / $ curl antrea-mc-www
 <html><body><h1>It works!</h1></body></html>
-´´´
+```
 
 Esto demostraría el proceso de preparación del entorno multicluster de la figura de arriba. Para hacer un ejemplo práctico podemos tomar como referencia la aplicación acme-fitness y distribuir algunos componentes entre los clusters que actuarán como frontal (TANZUHISPANO-01 y TANZUHISPANO-02) y backend (TANZUHISPANO-DB) simulando un posible caso de uso. 
 
-´´´
+```
  git clone https://github.com/jhasensio/tanzuhispano.git
  cd tanzuhispano/ACME-FITNESS/kubernetes-manifests/FRONTEND
  kubectl config use-context cl-tanzuhispano-01
  kubectl create ns acme-fitness
  kubectl apply -f . -n acme-fitness
-´´´
+```
 Cambiamos a TANZUHISPANO-02 que actuará como segundo frontend y aplicamos idéntica configuración
 ```
 kubectl config use-context cl-tanzuhispano-02
