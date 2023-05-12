@@ -76,7 +76,7 @@ En la topología multicluster, uno de los clusters actua como LEADER y es el enc
 ```
 kubectl config use-context cl-tanzuhispano-db
 kubectl apply -f https://raw.githubusercontent.com/antrea-io/antrea/main/multicluster/build/yamls/antrea-multicluster-leader-global.yml
-´´´
+```
 
 Seguidamente instalaremos el controller asi como otros objetos de configuracion necesarios bajo el namespace antrea-multicluster que ha de ser previamente creado
 
