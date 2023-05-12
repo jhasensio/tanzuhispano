@@ -496,6 +496,37 @@ If you don't see a command prompt, try pressing enter.
 
 Esto demostraría el proceso de preparación del entorno multicluster de la figura de arriba. Para hacer un ejemplo práctico podemos tomar como referencia la aplicación acme-fitness y distribuir algunos componentes entre los clusters que actuarán como frontal (TANZUHISPANO-01 y TANZUHISPANO-02) y backend (TANZUHISPANO-DB) simulando un posible caso de uso. 
 
+´´´
+ git clone https://github.com/jhasensio/tanzuhispano.git
+ cd tanzuhispano/ACME-FITNESS/kubernetes-manifests/FRONTEND
+ kubectl config use-context cl-tanzuhispano-01
+ kubectl create ns acme-fitness
+ kubectl apply -f . -n acme-fitness
+´´´
+Cambiamos a TANZUHISPANO-02 que actuará como segundo frontend y aplicamos idéntica configuración
+```
+kubectl config use-context cl-tanzuhispano-02
+kubectl create ns acme-fitness
+kubectl apply -f . -n acme-fitness
+```
+Y por último aplicamos la configuración de BACKEND en el cluster TANZIHISPANO-DB
+
+```
+cd ../BACKEND
+kubectl config use-context cl-tanzuhispano-db
+kubectl create ns acme-fitness
+kubectl apply -f . -n acme-fitness
+```
+
+La configuración completa aplicada asume que existe una integración con un balanceador de carga AVI con AKO y AMKO para resolver los servicios de ingress así como el geobalanceo. Debido a esto se utiliza Ingress con TLS para exponer el servicio. Si no se dispone de un ingress controller como AKO o algún otro, podemos verificar el servicio usando alguna otra alternativa. 
+ 
+Si abrimos un navegador con https://acme.global.tanzuhispano.lab. (AMKO ha creado el objeto global DNS en la configuracion de AVI) deberíamos poder acceder a una pagina como esta:
+ ![image](https://github.com/jhasensio/tanzuhispano/assets/37454410/c2f58c87-67ad-4d07-abc5-830884f6b75f)
+
+El hecho de que se muestren las imagenes de los artículos del catálogo es una prueba fehaciente de que la comunicación entre el frontend y el backend, que se encarga precisamente de servir el contenido e imagenes del catálogo, ha funcionado satisfactoriamente y, por tanto que hemos creado una arquitectura multicluster para nuestra aplicación. 
+ 
+Esto es todo amigos! 
+
 
  
  
