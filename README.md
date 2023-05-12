@@ -406,7 +406,101 @@ kubectl rollout restart deployment -n kube-system antrea-mc-controller
 ```
 Repetir el mismo proceso cambiando de contexto y ajustando los valores del podCIDR según corresponda sin olvidar reiniciar cada vez para que se tomen los nuevos valores.
  
-El último paso sería definir qué nodo dentro del cluster actuará como GATEWAY, es decir, el OVS se programará para que el tráfico destinado a un cluster externo egrese e ingrese por uno de los nodos que cumplirá esta tarea especial de encapsular/desencapsular el tráfico cuyo destino se encuentra en un cluster remoto. Esto se consigue a través de una simple anotación en el nodo deseado, en mi caso he tomado el primero de los nodos de cada cluster. Ajustar según la nomemclatura de cada cluster. 
+El último paso sería definir qué nodo dentro del cluster actuará como GATEWAY, es decir, el OVS se programará para que el tráfico destinado a un cluster externo egrese e ingrese por uno de los nodos que cumplirá esta tarea especial de encapsular/desencapsular el tráfico cuyo destino se encuentra en un cluster remoto. Esto se consigue a través de una simple anotación en el nodo deseado, en mi caso he tomado el primero de los nodos de cada cluster. Ajustar según la nomemclatura de cada nodo según el cluster correspondiente. 
+ 
+```
+## TANZUHISPANO-01
+kubectl config use-context cl-tanzuhispano-01
+kubectl annotate node cl-k8s-tanzuhispano-01-wrk-01 multicluster.antrea.io/gateway=true
+
+## TANZUHISPANO-02
+kubectl config use-context cl-tanzuhispano-02
+kubectl annotate node cl-k8s-tanzuhispano-02-wrk-01 multicluster.antrea.io/gateway=true
+
+## TANZUHISPANO-DB
+kubectl config use-context cl-tanzuhispano-db
+kubectl annotate node cl-k8s-tanzuhispano-db-wrk-01 multicluster.antrea.io/gateway=true
+```
+
+Una vez que la anotación es detectada, el proceso multicluster asiganará el rol de Gateway al nodo, esto puede verficiarse facilmente de la siguiente forma:
+```
+## TANZUHISPANO-01
+kubectl config use-context cl-tanzuhispano-01
+kubectl get gateway -n kube-system
+NAME                            GATEWAY IP     INTERNAL IP    AGE
+cl-k8s-tanzuhispano-01-wrk-01   10.118.4.205   10.118.4.205   88s
+
+## TANZUHISPANO-02
+kubectl config use-context cl-tanzuhispano-02
+kubectl get gateway -n kube-system
+NAME                            GATEWAY IP     INTERNAL IP    AGE
+cl-k8s-tanzuhispano-02-wrk-01   10.118.6.205   10.118.6.205   88s
+
+## TANZUHISPANO-DB
+kubectl config use-context cl-tanzuhispano-db
+kubectl get gateway -n kube-system
+NAME                            GATEWAY IP     INTERNAL IP    AGE
+cl-k8s-tanzuhispano-db-wrk-01   10.118.5.205   10.118.5.205   86s
+```
+Con esto ya tendriamos nuestro MULTICLUSTER operativo. Para validar la configuración podemos crear un servicio en el cluster tanzuhispano-db
+
+```
+###
+# CREAR DEPLOYMENT Y CLUSTERIP EN TANZUHISPANO-DB
+###
+kubectl config use-context cl-tanzuhispano-db
+kubectl create deployment --image=httpd --replicas=3 www
+kubectl expose deployment www --port=80
+```
+Seguidamente exportamos el servicio desde el cluster TANZUHISPANO-DB de modo que el resto de miembros puedan alcanzarlo
+
+´´´
+kubectl apply -f - <<EOF
+apiVersion: multicluster.x-k8s.io/v1alpha1
+kind: ServiceExport
+metadata:
+  name: www
+  namespace: default
+EOF
+´´´
+Si todo ha ido bien, deberíamos tener un objeto tipo serviceimport que representa el servicio remoto www. Observemos primero TANZUHISPANO-01
+
+```
+kubectl config use-context cl-tanzuhispano-01
+kubectl get serviceimports.multicluster.x-k8s.io 
+NAME   TYPE           IP                  AGE
+www    ClusterSetIP   ["10.228.98.170"]   10h
+```
+Si inpseccionamos los servcios observamos un nuevo servicio tipo ClusterIP con el sufijo "antrea-mc-" que se ha creado apuntando a la IP del ServiceImport de arriba 
+``` 
+kubectl get services
+NAME            TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
+antrea-mc-www   ClusterIP   10.228.98.170   <none>        80/TCP    10h
+kubernetes      ClusterIP   10.228.96.1     <none>        443/TCP   12h
+´´´
+Sin embargo, si observamos los endpoints, tal como se muestra abajo, podemos notar como nuestro servicio antrea-mc-www es una representación de un servicio cuyos endpoints pertenecen al rango de CIDR de Pods del cluster TANZUHISPANO-DB, precisamente por que corresponden a PODS que residen en un cluster remoto. 
+
+```
+kubectl get endpoints antrea-mc-www
+NAME            ENDPOINTS                                         AGE
+antrea-mc-www   10.118.113.9:80,10.118.114.8:80,10.118.115.5:80   69s
+```
+Esta importación de servicio ocurriría en todos los miembros del ClusterSet. Para hacer una prueba de conectividad básica podemos ejecutar un curl desde TANZUHISPANO-01 para ver si alcanzamos los pods en TANZUHISPANO-DB a través de la abstracción del servicio multicluster
+ 
+´´´
+kubectl run mycurlpod --image=curlimages/curl -i --tty -- sh
+If you don't see a command prompt, try pressing enter.
+/ $ curl antrea-mc-www
+<html><body><h1>It works!</h1></body></html>
+´´´
+
+Esto demostraría el proceso de preparación del entorno multicluster de la figura de arriba. Para hacer un ejemplo práctico podemos tomar como referencia la aplicación acme-fitness y distribuir algunos componentes entre los clusters que actuarán como frontal (TANZUHISPANO-01 y TANZUHISPANO-02) y backend (TANZUHISPANO-DB) simulando un posible caso de uso. 
+
+
+ 
+ 
+
+ 
 
 
 
