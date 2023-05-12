@@ -197,7 +197,7 @@ subjects:
     name: member-tanzuhispano-db
     namespace: antrea-multicluster
 EOF
-´´´
+```
 
 Seguidamente generamos desde el LEADER los secretos que contendran el token necesario a partir de los secrets previamente creados. 
 
