@@ -97,14 +97,14 @@ Nos movemos al cluster TANZUHISPANO-01 cambiando de contexto
 ```
 kubectl config use-context cl-tanzuhispano-01
 kubectl apply -f https://raw.githubusercontent.com/antrea-io/antrea/main/multicluster/build/yamls/antrea-multicluster-member.yml
-´´´
+```
 
 y por último nos movemos al cluster TANZUHISPANO-02 
 
 ```
 kubectl config use-context cl-tanzuhispano-02
 kubectl apply -f https://raw.githubusercontent.com/antrea-io/antrea/main/multicluster/build/yamls/antrea-multicluster-member.yml
-´´´
+```
 
 Seguidamente es necesario crear algunos permisos para autorizar la solicitud de membresía de los distintos clusters. Esto lo haremos en el LEADER
 ```
