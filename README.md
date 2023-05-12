@@ -327,7 +327,8 @@ spec:
       server: "https://10.118.5.200:6443"
   namespace: antrea-multicluster
 EOF
-´´´
+```
+                        
 Y, por último para el cluster TANZUHISPANO-DB que tambien actuará como MEMBER además de como LEADER
 ```
 kubectl config use-context cl-tanzuhispano-db
