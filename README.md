@@ -5,24 +5,24 @@ Se trata de crear una topología que combine la funcionalidad Multicluster de AN
 <img width="1088" alt="image" src="https://github.com/jhasensio/tanzuhispano/assets/37454410/3caaa3d5-cdbe-4f73-94bb-c47a0ec95612">
 
 
-El primer paso sería crear la infraestructura de kubernetes compuestas por 3 cluster de 1 Control Plane y 3 Miembros en mi caso.  En este caso he usado clusters vanilla 1.24 pero cualquier versión sería adecuada. Es importante utilizar redes de Pod y de Services NO SOLAPADAS. En este caso una manera de inicializar los clusters para respetar el direccionamiento indicado en el dibujo de arriba sería la que se muestra a continuación
+El primer paso sería crear la infraestructura de kubernetes compuestas por 3 cluster de 1 Control Plane y 3 Miembros en mi caso.  En este caso he usado clusters vanilla 1.24 pero cualquier versión sería adecuada. Es importante utilizar redes de Pod y de Services NO SOLAPADAS. En este caso una manera de inicializar los clusters para respetar el direccionamiento indicado en el dibujo de arriba sería la que se muestra a continuación:
 
 Saltar a VM designada como control-plane para el cluster TANZUHISPANO-01
  
 ```
-      kubeadm init --service-cidr=10.228.96.0/22 --pod-network-cidr=10.118.96.0/22
+kubeadm init --service-cidr=10.228.96.0/22 --pod-network-cidr=10.118.96.0/22
 ```
 
 Saltar a VM designada como control-plane para el cluster TANZUHISPANO-DB
  
 ```
-      kubeadm init --service-cidr=10.228.112.0/22 --pod-network-cidr=10.118.112.0/22
+kubeadm init --service-cidr=10.228.112.0/22 --pod-network-cidr=10.118.112.0/22
 ```
 
  Saltar a VM designada como control-plane para el cluster TANZUHISPANO-02
  
 ```
-      kubeadm init --service-cidr=10.228.128.0/22 --pod-network-cidr=10.118.128.0/22
+kubeadm init --service-cidr=10.228.128.0/22 --pod-network-cidr=10.118.128.0/22
 ```
 
 Una vez inicializado el control plane es necesario unir cada worker a su correspondiente controlplane usando la información generada por kubeadm init una vez completado el proceso de inicialización del cluster. 
@@ -70,42 +70,34 @@ Y, seguidamente, procedemos con la instalación del chart de acuerdo a los valor
 ```
 helm install antrea antrea/antrea -n kube-system -f values.yaml
 ````
-
 En la topología multicluster, uno de los clusters actua como LEADER y es el encargado de consolidar los recursos y servicios exportados por cada uno de los MEMBERS. El que actua como LEADER, a su vez, puede participar como MEMBERS. Usando el contexto (kubeconfig) adecuado accedemos al cluster denominado TANZUHISPANO-DB que acutará como LEADER en nuestra topología. Seguidamente procedemos a desplegar los CRDs necesarios (clusterclaims, clustersets, memberclustersannounces, resourceexports y resourceimports) usando el siguiente manifiesto: 
-
 ```
 kubectl config use-context cl-tanzuhispano-db
 kubectl apply -f https://raw.githubusercontent.com/antrea-io/antrea/main/multicluster/build/yamls/antrea-multicluster-leader-global.yml
 ```
-
 Seguidamente instalaremos el controller asi como otros objetos de configuracion necesarios bajo el namespace antrea-multicluster que ha de ser previamente creado
-
 ```
 kubectl create ns antrea-multicluster
 kubectl apply -f https://raw.githubusercontent.com/antrea-io/antrea/main/multicluster/build/yamls/antrea-multicluster-leader-namespaced.yml
 ```
-
 Una vez hecho esto, es momento de instalar los componentes de multicluster en los clusters MEMBERS. Puesto que queremos que el LEADER actue tambien como MEMBER (es decir, tendrá la capacidad de consumir servicios exportados por otros MEMBERS), tenemos que proceder con la instlación en los tres clusters que conformarán nuestro CLUSTERSET. Todos estos componentes se instalarán en el namespace kube-system por lo que no es necesario crear un ns ad-hoc excepto para el caso del LEADER. En mi caso he usado una maquina de salto que dispone de un fichero de configuración kubeconfig con tres contextos de modo que puedo ir cambiando de contexto desde la misma plataforma. 
-Empezamos por instalar los componentes de MEMBER en el cluster TANZUHISPANO-DB que tambien actua como LEADER. 
 
+Empezamos por instalar los componentes de MEMBER en el cluster TANZUHISPANO-DB que tambien actua como LEADER. 
 ```
 kubectl config use-context cl-tanzuhispano-db
 kubectl apply -f https://raw.githubusercontent.com/antrea-io/antrea/main/multicluster/build/yamls/antrea-multicluster-member.yml
 ```
 Nos movemos al cluster TANZUHISPANO-01 cambiando de contexto
-
 ```
 kubectl config use-context cl-tanzuhispano-01
 kubectl apply -f https://raw.githubusercontent.com/antrea-io/antrea/main/multicluster/build/yamls/antrea-multicluster-member.yml
 ```
-
 y por último nos movemos al cluster TANZUHISPANO-02 
 
 ```
 kubectl config use-context cl-tanzuhispano-02
 kubectl apply -f https://raw.githubusercontent.com/antrea-io/antrea/main/multicluster/build/yamls/antrea-multicluster-member.yml
 ```
-
 Seguidamente es necesario crear algunos permisos para autorizar la solicitud de membresía de los distintos clusters. Esto lo haremos en el LEADER
 ```
 kubectl config use-context cl-tanzuhispano-db
@@ -454,7 +446,6 @@ kubectl create deployment --image=httpd --replicas=3 www
 kubectl expose deployment www --port=80
 ```
 Seguidamente exportamos el servicio desde el cluster TANZUHISPANO-DB de modo que el resto de miembros puedan alcanzarlo
-
 ```
 kubectl apply -f - <<EOF
 apiVersion: multicluster.x-k8s.io/v1alpha1
@@ -463,16 +454,15 @@ metadata:
   name: www
   namespace: default
 EOF
-´´´
+```
 Si todo ha ido bien, deberíamos tener un objeto tipo serviceimport que representa el servicio remoto www. Observemos primero TANZUHISPANO-01
-
 ```
 kubectl config use-context cl-tanzuhispano-01
 kubectl get serviceimports.multicluster.x-k8s.io 
 NAME   TYPE           IP                  AGE
 www    ClusterSetIP   ["10.228.98.170"]   10h
 ```
-Si inpseccionamos los servcios observamos un nuevo servicio tipo ClusterIP con el sufijo "antrea-mc-" que se ha creado apuntando a la IP del ServiceImport de arriba 
+Si inspeccionamos los servcios observamos un nuevo servicio tipo ClusterIP con el sufijo "antrea-mc-" que se ha creado apuntando a la IP del ServiceImport de arriba.
 ``` 
 kubectl get services
 NAME            TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
@@ -522,6 +512,7 @@ kubectl apply -f . -n acme-fitness
 La configuración completa aplicada asume que existe una integración con un balanceador de carga AVI con AKO y AMKO para resolver los servicios de ingress así como el geobalanceo. Debido a esto se utiliza Ingress con TLS para exponer el servicio. Si no se dispone de un ingress controller como AKO o algún otro, podemos verificar el servicio usando alguna otra alternativa. 
  
 Si abrimos un navegador con https://acme.global.tanzuhispano.lab. (AMKO ha creado el objeto global DNS en la configuracion de AVI) deberíamos poder acceder a una pagina como esta:
+
  ![image](https://github.com/jhasensio/tanzuhispano/assets/37454410/c2f58c87-67ad-4d07-abc5-830884f6b75f)
 
 El hecho de que se muestren las imagenes de los artículos del catálogo es una prueba fehaciente de que la comunicación entre el frontend y el backend, que se encarga precisamente de servir el contenido e imagenes del catálogo, ha funcionado satisfactoriamente y, por tanto que hemos creado una arquitectura multicluster para nuestra aplicación. 
